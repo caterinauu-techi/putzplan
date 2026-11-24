@@ -26,6 +26,12 @@ service cloud.firestore {
       allow write: if signedIn() && id.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
     }
 
+    // Verfügbarkeit: Putzfrauen tragen ein, wann sie kommen können
+    match /avail/{id} {
+      allow read: if signedIn();
+      allow write: if signedIn() && id.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
     // Nachrichten: Putzfrau schreibt unter ihrer Personen-ID, nur die Verwaltung schreibt als admin,
     // ändern (gelesen) und löschen nur die Verwaltung
     match /messages/{id} {

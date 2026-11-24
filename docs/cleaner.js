@@ -12,7 +12,7 @@ const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* e
 const state = {
   lang: pref('putzplan-lang', 'uk'),
   me: pref('putzplan-me', ''),
-  settings: {}, days: {}, checks: {},
+  settings: {}, days: {}, checks: {}, avail: {},
   selected: null, year: 0, month: 0,
   loaded: { settings: false, days: false, checks: false },
   error: ''
@@ -35,7 +35,7 @@ function renderTop() {
   g.replaceChildren();
   g.setAttribute('aria-label', t().whoAmI);
   activePeople().forEach(p => {
-    g.append(el('button', { 'aria-pressed': state.me === p ? 'true' : 'false', onclick: () => { state.me = p; setPref('putzplan-me', p); renderTop(); } },
+    g.append(el('button', { 'aria-pressed': state.me === p ? 'true' : 'false', onclick: () => { state.me = p; setPref('putzplan-me', p); state.selected ? render() : renderTop(); } },
       t().whoAmI + ' ' + PEOPLE[p][state.lang]));
   });
   const b = $('banners');
@@ -49,13 +49,14 @@ function render() {
   renderTop();
   renderCalendar($('calendar'), {
     year: state.year, month: state.month, lang: state.lang, selected: state.selected,
-    settings: state.settings, days: state.days, checks: state.checks,
+    settings: state.settings, days: state.days, checks: state.checks, avail: state.avail,
     onSelect: k => { state.selected = k; render(); },
     onNav: d => { const m = new Date(state.year, state.month + d, 1); state.year = m.getFullYear(); state.month = m.getMonth(); render(); }
   });
   const legend = el('div', { class: 'legend' },
     activePeople().map(p => el('span', null, el('i', { style: 'background:' + PEOPLE[p].bg + ';border:1px solid ' + PEOPLE[p].color }), PEOPLE[p][state.lang])),
-    el('span', null, el('i', { style: 'background:#D9622B;border-radius:50%' }), t().special)
+    el('span', null, el('i', { style: 'background:#D9622B;border-radius:50%' }), t().special),
+    el('span', null, el('i', { style: 'background:#2F7A50;border-radius:50%;width:8px;height:8px' }), t().availLegend)
   );
   $('calendar').append(legend);
   renderDay();
@@ -94,6 +95,7 @@ function renderDay() {
     head.append(fri);
   }
   root.append(head);
+  root.append(availCard(key));
 
   // Sonderaufgaben
   const extras = day.extras || [];
@@ -129,6 +131,42 @@ function renderDay() {
   PLACES.forEach(p => pl.append(el('div', null, el('b', { text: p[L][0] }), el('span', { text: p[L][1] }))));
   det.append(pl);
   root.append(det);
+}
+
+function availCard(key) {
+  const L = state.lang;
+  const a = state.avail[key] || {};
+  const card = el('div', { class: 'card' }, el('h3', { class: 'section-title', style: 'margin-top:0', text: t().availTitle }));
+  if (!state.me) {
+    card.append(el('p', { class: 'empty-hint', text: t().availPickMe }));
+  } else {
+    const mine = a[state.me] || {};
+    const note = el('input', { type: 'text', placeholder: t().availNote, 'aria-label': t().availNote });
+    note.value = mine.note || '';
+    const set = async s => {
+      const txt = note.value.trim();
+      const entry = { s, note: txt, at: Date.now() };
+      state.avail[key] = Object.assign({}, a, { [state.me]: entry });
+      render();
+      try {
+        const de = txt && L !== 'de' ? await store.translate(txt, 'de') : txt;
+        await store.merge('avail', key, { [state.me]: Object.assign(entry, { noteDe: de || txt }) });
+      } catch (e) { state.error = t().saveError; renderTop(); }
+    };
+    card.append(el('div', { class: 'row', style: 'gap:8px' },
+      el('button', { class: 'chip avail-btn yes', 'aria-pressed': mine.s === 'yes' ? 'true' : 'false', onclick: () => set('yes') }, t().availYes),
+      el('button', { class: 'chip avail-btn no', 'aria-pressed': mine.s === 'no' ? 'true' : 'false', onclick: () => set('no') }, t().availNo)),
+      el('div', { style: 'margin-top:8px' }, note));
+    note.addEventListener('change', () => { if (mine.s) set(mine.s); });
+  }
+  const others = Object.keys(a).filter(pid => PEOPLE[pid] && a[pid] && a[pid].s);
+  if (others.length) {
+    card.append(el('div', { class: 't-meta', style: 'margin-top:10px', text: t().availOthers + ':' }));
+    others.forEach(pid => card.append(el('div', { class: 'avail-row' },
+      el('span', { text: PEOPLE[pid][L] + ' ' + (a[pid].s === 'yes' ? t().availCan : t().availCannot) }),
+      a[pid].note ? el('span', { class: 't-meta', text: a[pid].note }) : null)));
+  }
+  return card;
 }
 
 function taskButton(o, done) {
@@ -187,6 +225,7 @@ $('lang-de').onclick = () => { state.lang = 'de'; setPref('putzplan-lang', 'de')
     store.watch('settings', m => { state.settings = m; setPeople(m); state.loaded.settings = true; maybeStart(); render(); }, onErr);
     store.watch('days', m => { state.days = m; state.loaded.days = true; maybeStart(); render(); }, onErr);
     store.watch('checks', m => { state.checks = m; state.loaded.checks = true; render(); }, onErr);
+    store.watch('avail', m => { state.avail = m; render(); }, onErr);
     msgs = mountMessages($('messages'), { store, side: 'cleaner', lang: () => state.lang, me: () => state.me, onError: m => { state.error = m; renderTop(); } });
     store.watch('messages', m => msgs.setMessages(m), onErr);
   };

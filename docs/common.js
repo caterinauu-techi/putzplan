@@ -79,7 +79,16 @@ export const T = {
     note: 'Notiz',
     offline: 'Keine Verbindung – Änderungen werden gespeichert, sobald wieder Internet da ist.',
     demo: 'Demo-Modus: Daten werden nur in diesem Browser gespeichert.',
-    saveError: 'Konnte nicht speichern. Bitte noch einmal versuchen.'
+    saveError: 'Konnte nicht speichern. Bitte noch einmal versuchen.',
+    availTitle: 'Kann ich an diesem Tag kommen?',
+    availYes: 'Ich kann kommen',
+    availNo: 'Ich kann nicht',
+    availNote: 'Uhrzeit oder Bemerkung (optional)',
+    availPickMe: 'Bitte oben zuerst auswählen, wer du bist.',
+    availOthers: 'Eingetragen',
+    availCan: 'kann',
+    availCannot: 'kann nicht',
+    availLegend: 'kann kommen'
   },
   uk: {
     title: 'План прибирання',
@@ -101,7 +110,16 @@ export const T = {
     note: 'Примітка',
     offline: 'Немає зʼєднання – зміни збережуться, щойно зʼявиться інтернет.',
     demo: 'Демо-режим: дані зберігаються лише в цьому браузері.',
-    saveError: 'Не вдалося зберегти. Спробуйте ще раз.'
+    saveError: 'Не вдалося зберегти. Спробуйте ще раз.',
+    availTitle: 'Чи можу я прийти цього дня?',
+    availYes: 'Можу прийти',
+    availNo: 'Не можу',
+    availNote: 'Час або примітка (необовʼязково)',
+    availPickMe: 'Будь ласка, спочатку виберіть угорі, хто ви.',
+    availOthers: 'Відмічено',
+    availCan: 'може',
+    availCannot: 'не може',
+    availLegend: 'може прийти'
   }
 };
 

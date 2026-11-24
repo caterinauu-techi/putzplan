@@ -38,9 +38,18 @@ export function renderCalendar(root, opts) {
       el('span', { class: 'cal-num', text: String(Number(key.slice(8))) }),
       p ? el('span', { class: 'cal-who', style: 'background:' + p.bg + ';color:' + p.color, text: p[opts.lang].slice(0, who === 'open' ? 1 : 2) }) : null,
       extras.length ? el('span', { class: 'cal-dot', title: extras.length + '' }) : null,
+      availDots(opts.avail && opts.avail[key]),
       pr && pr.done > 0 ? el('span', { class: 'cal-bar' }, el('span', { style: 'width:' + Math.round(100 * pr.done / pr.total) + '%' })) : null
     );
     grid.append(btn);
   });
   root.append(head, grid);
+}
+
+// Kleine Punkte in Personenfarbe: wer an dem Tag kommen kann
+function availDots(a) {
+  if (!a) return null;
+  const yes = Object.keys(a).filter(pid => a[pid] && a[pid].s === 'yes' && PEOPLE[pid]);
+  if (!yes.length) return null;
+  return el('span', { class: 'cal-avail', 'aria-hidden': 'true' }, yes.map(pid => el('i', { style: 'background:' + PEOPLE[pid].color })));
 }

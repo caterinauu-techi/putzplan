@@ -6,7 +6,7 @@ import { mountMessages } from './messages.js';
 
 const t = T.de;
 const $ = id => document.getElementById(id);
-const state = { settings: {}, days: {}, checks: {}, selected: null, year: 0, month: 0, user: null, error: '' };
+const state = { settings: {}, days: {}, checks: {}, avail: {}, selected: null, year: 0, month: 0, user: null, error: '' };
 let store;
 let watching = false;
 
@@ -63,13 +63,14 @@ function render() {
   const cal = el('div', { class: 'card' });
   renderCalendar(cal, {
     year: state.year, month: state.month, lang: 'de', selected: state.selected,
-    settings: state.settings, days: state.days, checks: state.checks,
+    settings: state.settings, days: state.days, checks: state.checks, avail: state.avail,
     onSelect: k => { state.selected = k; render(); },
     onNav: d => { const m = new Date(state.year, state.month + d, 1); state.year = m.getFullYear(); state.month = m.getMonth(); render(); }
   });
   cal.append(el('div', { class: 'legend' },
     activePeople().concat(['open']).map(p => el('span', null, el('i', { style: 'background:' + PEOPLE[p].bg + ';border:1px solid ' + PEOPLE[p].color }), PEOPLE[p].de)),
-    el('span', null, el('i', { style: 'background:#D9622B;border-radius:50%' }), 'Sonderaufgabe')
+    el('span', null, el('i', { style: 'background:#D9622B;border-radius:50%' }), 'Sonderaufgabe'),
+    el('span', null, el('i', { style: 'background:#2F7A50;border-radius:50%;width:8px;height:8px' }), 'kann kommen (eingetragen)')
   ));
   left.append(cal, weeklyCard(), peopleCard(), linkCard());
   layout.append(left, el('section', null, dayCard(), dayTasksCard(), statusCard()));
@@ -98,6 +99,16 @@ function dayCard() {
     el('h2', { class: 'day-date', text: t.weekdaysLong[d.getDay()] + ', ' + d.getDate() + '. ' + t.months[d.getMonth()] + ' ' + d.getFullYear() }),
     who ? el('span', { class: 'who-chip', style: 'background:' + PEOPLE[who].bg + ';color:' + PEOPLE[who].color }, PEOPLE[who].de) : el('span', { class: 'who-chip', style: 'background:#F1EEE8;color:var(--muted)' }, 'Niemand')
   ));
+
+  const av = state.avail[key] || {};
+  const avIds = Object.keys(av).filter(pid => PEOPLE[pid] && av[pid] && av[pid].s);
+  const avBox = el('div', { class: 'note-box', style: 'background:#EEF6F0' }, el('div', { style: 'font-weight:900', text: 'Verfügbarkeit (von den Putzfrauen eingetragen)' }));
+  if (!avIds.length) avBox.append(el('div', { class: 't-meta', text: 'Noch nichts eingetragen.' }));
+  avIds.forEach(pid => avBox.append(el('div', { class: 'avail-row' },
+    el('span', { text: PEOPLE[pid].de + ': ' + (av[pid].s === 'yes' ? 'kann kommen' : 'kann nicht') }),
+    av[pid].noteDe || av[pid].note ? el('span', { class: 't-meta', text: '„' + (av[pid].noteDe || av[pid].note) + '“' }) : null,
+    av[pid].s === 'yes' && day.who !== pid ? el('button', { class: 'btn ghost small', onclick: () => save(() => store.merge('days', key, { who: pid })) }, PEOPLE[pid].de + ' einteilen') : null)));
+  card.append(avBox);
 
   const sel = el('select', { id: 'who-sel', onchange: e => save(() => store.merge('days', key, { who: e.target.value })) }, personOptions(day.who || 'default', true));
   card.append(el('label', { class: 'field', for: 'who-sel' }, 'Wer kommt an diesem Tag?', sel));
@@ -397,6 +408,7 @@ function startWatching() {
   store.watch('settings', m => { state.settings = m; setPeople(m); loaded.s = true; maybe(); }, onErr);
   store.watch('days', m => { state.days = m; loaded.d = true; maybe(); }, onErr);
   store.watch('checks', m => { state.checks = m; maybe(); }, onErr);
+  store.watch('avail', m => { state.avail = m; maybe(); }, onErr);
   $('msg-area').hidden = false;
   const msgs = mountMessages($('messages'), { store, side: 'admin', lang: () => 'de', me: () => 'admin', onError: m => { state.error = m; banner(); } });
   $('mark-read').onclick = () => msgs.unreadIds().forEach(id => store.merge('messages', id, { readByAdmin: true }).catch(onErr));
