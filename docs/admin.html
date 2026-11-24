@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Putzplan – Verwaltung</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="manifest" href="manifest-admin.webmanifest">
+<meta name="theme-color" content="#3D6B4F">
+<link rel="icon" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Putzplan">
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand"><small>Verwaltung</small><h1>Putzplan</h1></div>
+    <div class="controls" id="account"></div>
+  </header>
+  <div id="banners"></div>
+    <div id="msg-area" hidden style="margin-bottom:16px">
+    <div class="card" id="messages"></div>
+    <div class="row" style="margin-top:8px;justify-content:flex-end"><span id="unread"></span><button class="btn ghost small" id="mark-read" hidden>Alle als gelesen markieren</button></div>
+  </div>
+  <div id="app"></div>
+
+</div>
+<script type="module" src="admin.js"></script>
+</body>
+</html>

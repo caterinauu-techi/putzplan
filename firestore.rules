@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Wer verwaltet? Muss mit ADMIN_EMAILS in public/firebase-config.js übereinstimmen.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['caterina.uu@gmail.com'];
+    }
+    function signedIn() { return request.auth != null; }
+
+    // Wochenplan und Tage (wer kommt, Notizen, Sonderaufgaben): alle lesen, nur Verwaltung schreibt
+    match /settings/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+    match /days/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Abhaken: jede angemeldete Person (auch anonym = Putzfrau-Seite)
+    match /checks/{id} {
+      allow read: if signedIn();
+      allow write: if signedIn() && id.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    // Nachrichten: Putzfrau schreibt als olena/ilona, nur die Verwaltung schreibt als admin,
+    // ändern (gelesen) und löschen nur die Verwaltung
+    match /messages/{id} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        || (signedIn()
+            && request.resource.data.from in ['olena', 'ilona', 'open']
+            && request.resource.data.orig is string
+            && request.resource.data.orig.size() <= 2000);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

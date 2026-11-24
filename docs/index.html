@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>План прибирання</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3D6B4F">
+<link rel="icon" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Прибирання">
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand"><small id="kicker">Список завдань</small><h1 id="title">План прибирання</h1></div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Sprache / Мова">
+        <button id="lang-uk" aria-pressed="true">UA</button>
+        <button id="lang-de" aria-pressed="false">DE</button>
+      </div>
+      <div class="seg" role="group" id="me-group"></div>
+    </div>
+  </header>
+  <div id="banners"></div>
+  <main class="layout">
+    <section class="sticky">
+      <div class="card" id="calendar"></div>
+      <div class="card" id="messages"></div>
+    </section>
+    <section id="day"></section>
+  </main>
+</div>
+<script type="module" src="cleaner.js"></script>
+</body>
+</html>
