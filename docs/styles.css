@@ -128,4 +128,19 @@ textarea { min-height: 72px; resize: vertical; }
 .chip { border: 1.5px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 13.5px; cursor: pointer; min-height: 36px; }
 .badge { display: inline-flex; min-width: 22px; height: 22px; border-radius: 11px; background: #D9622B; color: #fff; font-size: 12px; font-weight: 900; align-items: center; justify-content: center; padding: 0 6px; }
 .tr-preview { font-size: 13px; color: var(--muted); font-weight: 700; margin-top: 4px; }
+/* Aufgaben pro Tag (Verwaltung) */
+.dt-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-top: 1px solid var(--line); font-weight: 700; cursor: pointer; min-height: 40px; }
+.dt-row.child { padding-left: 26px; }
+.dt-row input { width: 20px; height: 20px; accent-color: var(--accent); flex-shrink: 0; }
+.dt-group { font-weight: 900; padding: 10px 4px 4px; }
+/* Aufgabenliste bearbeiten */
+.ed-group { margin-top: 14px; }
+.ed-task { border: 1.5px solid var(--line); border-radius: 12px; padding: 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ed-task.child { margin-left: 26px; background: #fff; }
+.ed-head { display: flex; align-items: center; gap: 8px; }
+.ed-name { flex: 1; font-weight: 800; min-width: 0; }
+.ed-tools { display: flex; gap: 4px; flex-shrink: 0; }
+.wd-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip.small { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+.chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
 :focus-visible { outline: 3px solid #3A5BA0; outline-offset: 2px; }

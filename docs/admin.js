@@ -1,7 +1,7 @@
 import { initStore, isAdminUser } from './store.js';
 import { PEOPLE, T, whoFor, weekly, nextVisit, dateOf, el, newId, todayKey, setPeople, activePeople, peopleList, toUkrainian, PALETTE } from './common.js';
 import { renderCalendar, progress } from './calendar.js';
-import { ROUTINE_FLAT, TEMPLATES } from './tasks.js';
+import { TEMPLATES, getRoutine, routineFor, flatFor, isOn, COLORS } from './tasks.js';
 import { mountMessages } from './messages.js';
 
 const t = T.de;
@@ -53,6 +53,11 @@ function render() {
   banner(); account();
   const app = $('app');
   app.replaceChildren();
+  const nav = el('div', { class: 'seg', role: 'group', 'aria-label': 'Ansicht', style: 'margin-bottom:14px' },
+    el('button', { 'aria-pressed': state.view !== 'tasks' ? 'true' : 'false', onclick: () => { state.view = 'plan'; render(); } }, 'Plan & Tage'),
+    el('button', { 'aria-pressed': state.view === 'tasks' ? 'true' : 'false', onclick: () => { state.view = 'tasks'; render(); } }, 'Aufgabenliste bearbeiten'));
+  app.append(nav);
+  if (state.view === 'tasks') { app.append(taskEditor()); return; }
   const layout = el('main', { class: 'layout' });
   const left = el('section', { class: 'sticky' });
   const cal = el('div', { class: 'card' });
@@ -67,7 +72,7 @@ function render() {
     el('span', null, el('i', { style: 'background:#D9622B;border-radius:50%' }), 'Sonderaufgabe')
   ));
   left.append(cal, weeklyCard(), peopleCard(), linkCard());
-  layout.append(left, el('section', null, dayCard(), statusCard()));
+  layout.append(left, el('section', null, dayCard(), dayTasksCard(), statusCard()));
   app.append(layout);
 }
 
@@ -146,11 +151,11 @@ function dayCard() {
 function statusCard() {
   const key = state.selected;
   const done = (state.checks[key] && state.checks[key].done) || {};
-  const pr = progress(key, state.days, state.checks);
+  const pr = progress(key, state.days, state.checks, state.settings);
   const card = el('div', { class: 'card' }, el('h3', { class: 'section-title', style: 'margin-top:0', text: 'Erledigt an diesem Tag: ' + pr.done + ' / ' + pr.total }));
   card.append(el('div', { class: 'progress' }, el('div', { class: 'progress-track' }, el('span', { style: 'width:' + (pr.total ? Math.round(100 * pr.done / pr.total) : 0) + '%' }))));
   const list = el('div', { class: 'status-list' });
-  ROUTINE_FLAT.forEach(task => {
+  flatFor(key, state.settings, state.days).forEach(task => {
     const r = done[task.id];
     list.append(el('div', null,
       el('span', { class: r ? 'ok' : 'no', text: r ? '✓' : '○' }),
@@ -221,6 +226,152 @@ function confirmRemove(name) {
   banner();
   setTimeout(() => { if (pendingRemove && pendingRemove.name === name) { pendingRemove = null; state.error = ''; banner(); } }, 4000);
   return false;
+}
+
+// ---------- Aufgaben an einem Tag freigeben ----------
+function dayTasksCard() {
+  const key = state.selected;
+  const list = routineFor(key, state.settings, state.days, true);
+  const overrides = (state.days[key] && state.days[key].tasks) || {};
+  const card = el('div', { class: 'card' },
+    el('h3', { class: 'section-title', style: 'margin-top:0', text: 'Aufgaben an diesem Tag' }),
+    el('p', { class: 'empty-hint', style: 'padding:0', text: 'Nur angehakte Aufgaben sieht die Putzfrau an diesem Tag. Voreinstellung kommt aus den Wochentagen der Aufgabenliste.' }));
+  const toggle = (id, val) => save(() => store.merge('days', key, { tasks: { [id]: val } }));
+  const row = (t, child) => {
+    const on = isOn(t, key, state.days);
+    const cb = el('input', { type: 'checkbox', id: 'dt-' + t.id, checked: on ? 'checked' : null, onchange: e => toggle(t.id, e.target.checked) });
+    return el('label', { class: 'dt-row' + (child ? ' child' : ''), for: 'dt-' + t.id }, cb,
+      el('span', { text: t.n + '  ' + t.de }), overrides[t.id] !== undefined ? el('span', { class: 't-meta', text: '(nur heute geändert)' }) : null);
+  };
+  list.forEach(item => {
+    if (item.group) {
+      card.append(el('div', { class: 'dt-group', style: 'color:' + COLORS[item.c].fg, text: item.n + '  ' + item.de }));
+      item.children.forEach(ch => card.append(row(ch, true)));
+    } else card.append(row(item, false));
+  });
+  if (Object.keys(overrides).length) {
+    card.append(el('button', { class: 'btn ghost small', style: 'margin-top:10px', onclick: () => save(() => store.removeField('days', key, 'tasks')) }, 'Auf Wochentage zurücksetzen'));
+  }
+  return card;
+}
+
+// ---------- Aufgabenliste bearbeiten ----------
+const WD = [[1, 'Mo'], [2, 'Di'], [3, 'Mi'], [4, 'Do'], [5, 'Fr'], [6, 'Sa'], [0, 'So']];
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+
+function taskEditor() {
+  const list = clone(getRoutine(state.settings));
+  const saveTasks = l => save(() => store.put('settings', 'tasks', { list: l }));
+  const tr = async txt => (txt ? (await store.translate(txt, 'uk')) || '' : '');
+  const get = path => path.length === 1 ? list[path[0]] : list[path[0]].children[path[1]];
+  const arr = path => path.length === 1 ? list : list[path[0]].children;
+  const status = el('span', { class: 't-meta' });
+
+  async function setName(path, val) {
+    const t = get(path);
+    if (!val || val === t.de) return;
+    status.textContent = 'Übersetze …';
+    t.de = val; t.uk = await tr(val);
+    status.textContent = '';
+    saveTasks(list);
+  }
+  async function setSubs(path, text) {
+    const t = get(path);
+    const de = text.split('\n').map(x => x.trim()).filter(Boolean);
+    status.textContent = 'Übersetze …';
+    const uk = await Promise.all(de.map(tr));
+    status.textContent = '';
+    t.subs = de.length ? { de, uk: uk.map((u, i) => u || de[i]) } : null;
+    if (!t.subs) delete t.subs;
+    saveTasks(list);
+  }
+  async function setNote(path, text) {
+    const t = get(path);
+    const de = text.trim();
+    if (!de) delete t.note; else t.note = { de, uk: await tr(de) };
+    saveTasks(list);
+  }
+  function move(path, d) {
+    const a = arr(path); const i = path[path.length - 1]; const j = i + d;
+    if (j < 0 || j >= a.length) return;
+    [a[i], a[j]] = [a[j], a[i]];
+    saveTasks(list);
+  }
+  function remove(path) {
+    const t = get(path);
+    if (!confirmRemove(t.de)) return;
+    arr(path).splice(path[path.length - 1], 1);
+    saveTasks(list);
+  }
+  function toggleWd(path, wd) {
+    const t = get(path);
+    const cur = Array.isArray(t.wd) ? t.wd.slice() : [0, 1, 2, 3, 4, 5, 6];
+    const i = cur.indexOf(wd);
+    if (i >= 0) cur.splice(i, 1); else cur.push(wd);
+    t.wd = cur.sort();
+    if (t.wd.length === 7) delete t.wd;
+    saveTasks(list);
+  }
+
+  function tools(path) {
+    return el('div', { class: 'ed-tools' },
+      el('button', { class: 'btn ghost small', 'aria-label': 'Nach oben', onclick: () => move(path, -1) }, '↑'),
+      el('button', { class: 'btn ghost small', 'aria-label': 'Nach unten', onclick: () => move(path, 1) }, '↓'),
+      el('button', { class: 'btn ghost small', onclick: () => remove(path) }, 'Streichen'));
+  }
+
+  function taskBlock(t, path, num, col, child) {
+    const name = el('input', { type: 'text', value: t.de, 'aria-label': 'Aufgabe', class: 'ed-name' });
+    name.addEventListener('change', () => setName(path, name.value.trim()));
+    const subs = el('textarea', { rows: '2', placeholder: 'Unterpunkte, je Zeile einer (optional)', 'aria-label': 'Unterpunkte' });
+    subs.value = t.subs && t.subs.de ? t.subs.de.join('\n') : '';
+    subs.addEventListener('change', () => setSubs(path, subs.value));
+    const note = el('input', { type: 'text', value: t.note ? t.note.de : '', placeholder: 'Hinweis (optional)', 'aria-label': 'Hinweis' });
+    note.addEventListener('change', () => setNote(path, note.value));
+    const wds = el('div', { class: 'wd-chips', role: 'group', 'aria-label': 'Wochentage' },
+      WD.map(([n, l]) => el('button', { class: 'chip small', 'aria-pressed': (!Array.isArray(t.wd) || t.wd.includes(n)) ? 'true' : 'false', onclick: () => toggleWd(path, n) }, l)));
+    return el('div', { class: 'ed-task' + (child ? ' child' : ''), style: child ? null : 'background:' + col.bg },
+      el('div', { class: 'ed-head' }, el('span', { class: 'num', style: 'color:' + col.fg, text: num }), name, tools(path)),
+      el('div', { class: 't-meta', text: 'UA: ' + (t.uk || '—') }),
+      wds, subs, note);
+  }
+
+  const wrap = el('div', { class: 'card' },
+    el('div', { class: 'day-head' }, el('h2', { class: 'day-date', text: 'Aufgabenliste' }), status),
+    el('p', { class: 'empty-hint', style: 'padding:0', text: 'Änderungen werden sofort gespeichert und automatisch ins Ukrainische übersetzt. Wochentage: an welchen Tagen die Aufgabe normalerweise dran ist – pro Tag kannst du es unter „Plan & Tage“ noch ändern.' }));
+  const view = routineFor(null, state.settings, state.days, true);
+  view.forEach((item, i) => {
+    const col = COLORS[item.c];
+    if (item.group) {
+      const gname = el('input', { type: 'text', value: item.de, 'aria-label': 'Bereich', class: 'ed-name' });
+      gname.addEventListener('change', () => setName([i], gname.value.trim()));
+      const sec = el('div', { class: 'ed-group' },
+        el('div', { class: 'ed-head', style: 'background:' + col.bg + ';padding:8px 10px;border-radius:12px' },
+          el('span', { class: 'num', style: 'color:' + col.fg, text: item.n }), gname, tools([i])),
+        el('div', { class: 't-meta', style: 'margin:2px 0 6px 10px', text: 'UA: ' + (item.uk || '—') }));
+      item.children.forEach((ch, j) => sec.append(taskBlock(list[i].children[j], [i, j], ch.n, col, true)));
+      const add = el('input', { type: 'text', placeholder: 'Neue Aufgabe in „' + item.de + '“' });
+      sec.append(el('div', { class: 'row', style: 'margin:6px 0 0 26px' }, add, el('button', { class: 'btn small', onclick: async () => {
+        const v = add.value.trim(); if (!v) return; add.value = '';
+        list[i].children.push({ id: 't_' + newId(), de: v, uk: await tr(v) }); saveTasks(list);
+      } }, 'Hinzufügen')));
+      wrap.append(sec);
+    } else {
+      wrap.append(taskBlock(list[i], [i], item.n, col, false));
+    }
+  });
+  const newMain = el('input', { type: 'text', placeholder: 'Neue Aufgabe (eigener Punkt)' });
+  const newGroup = el('input', { type: 'text', placeholder: 'Neuer Bereich mit Unteraufgaben, z. B. „Keller“' });
+  wrap.append(el('h3', { class: 'section-title', text: 'Neu hinzufügen' }),
+    el('div', { class: 'row' }, newMain, el('button', { class: 'btn', onclick: async () => {
+      const v = newMain.value.trim(); if (!v) return; newMain.value = '';
+      list.push({ id: 't_' + newId(), de: v, uk: await tr(v) }); saveTasks(list);
+    } }, 'Aufgabe hinzufügen')),
+    el('div', { class: 'row', style: 'margin-top:8px' }, newGroup, el('button', { class: 'btn', onclick: async () => {
+      const v = newGroup.value.trim(); if (!v) return; newGroup.value = '';
+      list.push({ id: 'g_' + newId(), group: true, de: v, uk: await tr(v), children: [] }); saveTasks(list);
+    } }, 'Bereich hinzufügen')));
+  return wrap;
 }
 
 function linkCard() {

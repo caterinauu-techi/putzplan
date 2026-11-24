@@ -10,7 +10,7 @@ export const COLORS = {
   purple: { fg: '#7D3890', bg: '#EBDDF5' }
 };
 
-export const ROUTINE = [
+export const DEFAULT_ROUTINE = [
   { id: 'k1', n: '1', c: 'amber',
     de: 'Küche aufräumen', uk: 'Прибрати на кухні',
     subs: { de: ['Lebensmittel in den Kühlschrank', 'Spülmaschinen ausräumen', 'Frühstücksgeschirr in die Spülmaschine einräumen'],
@@ -76,8 +76,49 @@ export const ROUTINE = [
     ] }
 ];
 
-// Alle abhakbaren Routine-Aufgaben als flache Liste
-export const ROUTINE_FLAT = ROUTINE.flatMap(t => t.group ? t.children : [t]);
+export const ROUTINE = DEFAULT_ROUTINE;
+const COLOR_ORDER = ['amber', 'coral', 'teal', 'green', 'blue', 'purple'];
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+
+// Aktuelle Aufgabenliste: aus der Verwaltung (settings/tasks) oder die Standardliste
+export function getRoutine(settings) {
+  const l = settings && settings.tasks && Array.isArray(settings.tasks.list) ? settings.tasks.list : null;
+  return l && l.length ? l : DEFAULT_ROUTINE;
+}
+
+// Ist die Aufgabe an diesem Tag dran? Tages-Einstellung schlägt Wochentage.
+export function isOn(task, key, days) {
+  const o = days && days[key] && days[key].tasks ? days[key].tasks[task.id] : undefined;
+  if (o === true || o === false) return o;
+  const wd = new Date(key + 'T12:00:00').getDay();
+  return !Array.isArray(task.wd) || task.wd.includes(wd);
+}
+
+// Liste mit fortlaufender Nummerierung und Farben. includeOff=false: nur die für den Tag freigegebenen Aufgaben.
+export function routineFor(key, settings, days, includeOff) {
+  const out = [];
+  let n = 0;
+  getRoutine(settings).forEach((item, idx) => {
+    const c = item.c || COLOR_ORDER[idx % COLOR_ORDER.length];
+    if (item.group) {
+      const kids = (item.children || []).filter(ch => includeOff || !key || isOn(ch, key, days));
+      if (!kids.length && !includeOff) return;
+      n++;
+      out.push(Object.assign({}, item, { c, n: String(n), children: kids.map((ch, j) => Object.assign({}, ch, { n: LETTERS[j] || '·' })) }));
+    } else {
+      if (!includeOff && key && !isOn(item, key, days)) return;
+      n++;
+      out.push(Object.assign({}, item, { c, n: String(n) }));
+    }
+  });
+  return out;
+}
+
+// Alle abhakbaren Aufgaben, die an diesem Tag freigegeben sind
+export function flatFor(key, settings, days) {
+  return routineFor(key, settings, days, false).flatMap(t => t.group ? t.children : [t]);
+}
+export const ROUTINE_FLAT = DEFAULT_ROUTINE.flatMap(t => t.group ? t.children : [t]);
 
 export const FRIDAY_NOTE = {
   de: 'WICHTIG: Freitags muss alles vollständig gewaschen, gebügelt und eingeräumt sein!',

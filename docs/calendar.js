@@ -1,9 +1,9 @@
 import { PEOPLE, T, monthCells, whoFor, todayKey, el } from './common.js';
-import { ROUTINE_FLAT } from './tasks.js';
+import { flatFor } from './tasks.js';
 
-export function progress(key, days, checks) {
+export function progress(key, days, checks, settings) {
   const extras = (days[key] && days[key].extras) || [];
-  const ids = ROUTINE_FLAT.map(t => t.id).concat(extras.map(x => x.id));
+  const ids = flatFor(key, settings, days).map(t => t.id).concat(extras.map(x => x.id));
   const done = (checks[key] && checks[key].done) || {};
   const n = ids.filter(id => done[id]).length;
   return { done: n, total: ids.length };
@@ -28,7 +28,7 @@ export function renderCalendar(root, opts) {
     const who = whoFor(key, opts.settings, opts.days);
     const p = who ? PEOPLE[who] : null;
     const extras = (opts.days[key] && opts.days[key].extras) || [];
-    const pr = who ? progress(key, opts.days, opts.checks) : null;
+    const pr = who ? progress(key, opts.days, opts.checks, opts.settings) : null;
     const cls = ['cal-cell'];
     if (key === today) cls.push('today');
     if (key === opts.selected) cls.push('selected');

@@ -1,7 +1,7 @@
 import { initStore } from './store.js';
 import { PEOPLE, T, whoFor, nextVisit, dateOf, el, ICON_CHECK, setPeople, activePeople } from './common.js';
 import { renderCalendar, progress } from './calendar.js';
-import { ROUTINE, COLORS, FRIDAY_NOTE, MATTE_NOTE, PLACES } from './tasks.js';
+import { routineFor, COLORS, FRIDAY_NOTE, MATTE_NOTE, PLACES } from './tasks.js';
 import { mountMessages } from './messages.js';
 
 const WARN_SVG = '<svg width="22" height="22" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4L2 28h28zM16 13v7M16 24v.5"/></svg>';
@@ -79,7 +79,7 @@ function renderDay() {
     )
   );
   if (who) {
-    const pr = progress(key, state.days, state.checks);
+    const pr = progress(key, state.days, state.checks, state.settings);
     head.append(el('div', { class: 'progress' },
       el('div', { class: 'progress-track' }, el('span', { style: 'width:' + (pr.total ? Math.round(100 * pr.done / pr.total) : 0) + '%' })),
       el('div', { class: 'progress-label', text: pr.done + ' / ' + pr.total + ' ' + t().done })
@@ -110,14 +110,14 @@ function renderDay() {
   // Routine
   const rc = el('div', { class: 'card' }, el('h3', { class: 'section-title', style: 'margin-top:0', text: t().routine }));
   const list = el('div', { class: 'tasks' });
-  ROUTINE.forEach(item => {
+  routineFor(key, state.settings, state.days, false).forEach(item => {
     const col = COLORS[item.c];
     if (item.group) {
       list.append(el('div', { class: 'group-head', style: 'background:' + col.bg + ';color:' + col.fg },
-        el('span', { class: 'num', style: 'color:' + col.fg, text: item.n }), el('span', { text: item[L] })));
-      item.children.forEach(c => list.append(taskButton({ id: c.id, n: c.n, label: c[L], subs: c.subs && c.subs[L], note: c.note && c.note[L], col, child: true }, done)));
+        el('span', { class: 'num', style: 'color:' + col.fg, text: item.n }), el('span', { text: item[L] || item.de })));
+      item.children.forEach(c => list.append(taskButton({ id: c.id, n: c.n, label: c[L] || c.de, subs: c.subs && ((c.subs[L] && c.subs[L].length) ? c.subs[L] : c.subs.de), note: c.note && (c.note[L] || c.note.de), col, child: true }, done)));
     } else {
-      list.append(taskButton({ id: item.id, n: item.n, label: item[L], subs: item.subs && item.subs[L], note: item.note && item.note[L], col, main: true }, done));
+      list.append(taskButton({ id: item.id, n: item.n, label: item[L] || item.de, subs: item.subs && ((item.subs[L] && item.subs[L].length) ? item.subs[L] : item.subs.de), note: item.note && (item.note[L] || item.note.de), col, main: true }, done));
     }
   });
   rc.append(list);
