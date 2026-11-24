@@ -1,5 +1,5 @@
 import { initStore } from './store.js';
-import { PEOPLE, T, whoFor, nextVisit, dateOf, el, ICON_CHECK } from './common.js';
+import { PEOPLE, T, whoFor, nextVisit, dateOf, el, ICON_CHECK, setPeople, activePeople } from './common.js';
 import { renderCalendar, progress } from './calendar.js';
 import { ROUTINE, COLORS, FRIDAY_NOTE, MATTE_NOTE, PLACES } from './tasks.js';
 import { mountMessages } from './messages.js';
@@ -34,7 +34,7 @@ function renderTop() {
   const g = $('me-group');
   g.replaceChildren();
   g.setAttribute('aria-label', t().whoAmI);
-  ['olena', 'ilona'].forEach(p => {
+  activePeople().forEach(p => {
     g.append(el('button', { 'aria-pressed': state.me === p ? 'true' : 'false', onclick: () => { state.me = p; setPref('putzplan-me', p); renderTop(); } },
       t().whoAmI + ' ' + PEOPLE[p][state.lang]));
   });
@@ -54,7 +54,7 @@ function render() {
     onNav: d => { const m = new Date(state.year, state.month + d, 1); state.year = m.getFullYear(); state.month = m.getMonth(); render(); }
   });
   const legend = el('div', { class: 'legend' },
-    ['olena', 'ilona'].map(p => el('span', null, el('i', { style: 'background:' + PEOPLE[p].bg + ';border:1px solid ' + PEOPLE[p].color }), PEOPLE[p][state.lang])),
+    activePeople().map(p => el('span', null, el('i', { style: 'background:' + PEOPLE[p].bg + ';border:1px solid ' + PEOPLE[p].color }), PEOPLE[p][state.lang])),
     el('span', null, el('i', { style: 'background:#D9622B;border-radius:50%' }), t().special)
   );
   $('calendar').append(legend);
@@ -184,7 +184,7 @@ $('lang-de').onclick = () => { state.lang = 'de'; setPref('putzplan-lang', 'de')
   renderTop();
   const onErr = () => { state.error = t().offline; renderTop(); };
   const start = () => {
-    store.watch('settings', m => { state.settings = m; state.loaded.settings = true; maybeStart(); render(); }, onErr);
+    store.watch('settings', m => { state.settings = m; setPeople(m); state.loaded.settings = true; maybeStart(); render(); }, onErr);
     store.watch('days', m => { state.days = m; state.loaded.days = true; maybeStart(); render(); }, onErr);
     store.watch('checks', m => { state.checks = m; state.loaded.checks = true; render(); }, onErr);
     msgs = mountMessages($('messages'), { store, side: 'cleaner', lang: () => state.lang, me: () => state.me, onError: m => { state.error = m; renderTop(); } });

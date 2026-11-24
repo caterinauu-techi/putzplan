@@ -1,5 +1,5 @@
 import { initStore, isAdminUser } from './store.js';
-import { PEOPLE, T, whoFor, weekly, nextVisit, dateOf, el, newId, todayKey } from './common.js';
+import { PEOPLE, T, whoFor, weekly, nextVisit, dateOf, el, newId, todayKey, setPeople, activePeople, peopleList, toUkrainian, PALETTE } from './common.js';
 import { renderCalendar, progress } from './calendar.js';
 import { ROUTINE_FLAT, TEMPLATES } from './tasks.js';
 import { mountMessages } from './messages.js';
@@ -63,10 +63,10 @@ function render() {
     onNav: d => { const m = new Date(state.year, state.month + d, 1); state.year = m.getFullYear(); state.month = m.getMonth(); render(); }
   });
   cal.append(el('div', { class: 'legend' },
-    ['olena', 'ilona', 'open'].map(p => el('span', null, el('i', { style: 'background:' + PEOPLE[p].bg + ';border:1px solid ' + PEOPLE[p].color }), PEOPLE[p].de)),
+    activePeople().concat(['open']).map(p => el('span', null, el('i', { style: 'background:' + PEOPLE[p].bg + ';border:1px solid ' + PEOPLE[p].color }), PEOPLE[p].de)),
     el('span', null, el('i', { style: 'background:#D9622B;border-radius:50%' }), 'Sonderaufgabe')
   ));
-  left.append(cal, weeklyCard(), linkCard());
+  left.append(cal, weeklyCard(), peopleCard(), linkCard());
   layout.append(left, el('section', null, dayCard(), statusCard()));
   app.append(layout);
 }
@@ -77,7 +77,9 @@ function personOptions(current, withDefault) {
     const w = weekly(state.settings)[dateOf(state.selected).getDay()];
     opts.push(['default', 'Wie Wochenplan (' + (w && w !== 'none' ? PEOPLE[w].de : 'niemand') + ')']);
   }
-  opts.push(['olena', 'Olena'], ['ilona', 'Ilona'], ['open', 'Putzfrau (noch offen)'], ['none', withDefault ? 'Kommt nicht' : '—']);
+  activePeople().forEach(id => opts.push([id, PEOPLE[id].de]));
+  if (current && current !== 'default' && current !== 'none' && current !== 'open' && !activePeople().includes(current)) opts.push([current, (PEOPLE[current] ? PEOPLE[current].de : 'Unbekannt') + ' (entfernt)']);
+  opts.push(['open', 'Putzfrau (noch offen)'], ['none', withDefault ? 'Kommt nicht' : '—']);
   return opts.map(([v, l]) => el('option', { value: v, selected: v === current ? 'selected' : null }, l));
 }
 
@@ -172,6 +174,55 @@ function weeklyCard() {
   return card;
 }
 
+function peopleCard() {
+  const list = peopleList(state.settings).map(p => Object.assign({}, p));
+  const saveList = l => save(() => store.put('settings', 'people', { list: l }));
+  const card = el('div', { class: 'card' }, el('h3', { class: 'section-title', style: 'margin-top:0', text: 'Personen' }),
+    el('p', { class: 'empty-hint', style: 'padding:0', text: 'Wer bei euch putzt. Die ukrainische Schreibweise wird vorgeschlagen und kann geändert werden.' }));
+  list.forEach((p, i) => {
+    if (p.active === false) return;
+    const de = el('input', { type: 'text', value: p.de, 'aria-label': 'Name (Deutsch)' });
+    const uk = el('input', { type: 'text', value: p.uk || '', 'aria-label': 'Name (Ukrainisch)' });
+    const commit = () => {
+      const nde = de.value.trim();
+      if (!nde) { de.value = p.de; return; }
+      list[i] = Object.assign({}, p, { de: nde, uk: uk.value.trim() || toUkrainian(nde) });
+      saveList(list);
+    };
+    de.addEventListener('change', () => { if (!uk.value.trim() || uk.value === toUkrainian(p.de)) uk.value = toUkrainian(de.value.trim()); commit(); });
+    uk.addEventListener('change', commit);
+    card.append(el('div', { class: 'extra-row', style: 'align-items:center' },
+      el('i', { style: 'width:16px;height:16px;border-radius:5px;flex-shrink:0;background:' + p.bg + ';border:1.5px solid ' + p.color }),
+      el('div', { class: 'grow', style: 'display:flex;gap:6px;flex-wrap:wrap' }, de, uk),
+      el('button', { class: 'btn ghost small', 'aria-label': p.de + ' entfernen', onclick: () => {
+        if (!confirmRemove(p.de)) return;
+        list[i] = Object.assign({}, p, { active: false });
+        saveList(list);
+      } }, 'Entfernen')));
+  });
+  const nn = el('input', { type: 'text', id: 'new-person', placeholder: 'Name der neuen Person' });
+  card.append(el('label', { class: 'field', for: 'new-person' }, 'Person hinzufügen'),
+    el('div', { class: 'row' }, nn, el('button', { class: 'btn', onclick: () => {
+      const name = nn.value.trim();
+      if (!name) return;
+      const col = PALETTE[list.length % PALETTE.length];
+      nn.value = '';
+      saveList(list.concat([{ id: 'p_' + newId(), de: name, uk: toUkrainian(name), color: col.color, bg: col.bg, active: true }]));
+    } }, 'Hinzufügen')));
+  return card;
+}
+
+// Entfernen ohne Browser-Dialog: zweimal klicken innerhalb von 4 Sekunden
+let pendingRemove = null;
+function confirmRemove(name) {
+  if (pendingRemove && pendingRemove.name === name && Date.now() - pendingRemove.at < 4000) { pendingRemove = null; return true; }
+  pendingRemove = { name, at: Date.now() };
+  state.error = 'Zum Entfernen von ' + name + ' noch einmal auf „Entfernen“ klicken. Bisherige Einträge bleiben erhalten.';
+  banner();
+  setTimeout(() => { if (pendingRemove && pendingRemove.name === name) { pendingRemove = null; state.error = ''; banner(); } }, 4000);
+  return false;
+}
+
 function linkCard() {
   const url = new URL('index.html', location.href).href;
   const inp = el('input', { type: 'text', readonly: true, value: url, 'aria-label': 'Link für die Putzfrau' });
@@ -192,7 +243,7 @@ function startWatching() {
     }
     render();
   };
-  store.watch('settings', m => { state.settings = m; loaded.s = true; maybe(); }, onErr);
+  store.watch('settings', m => { state.settings = m; setPeople(m); loaded.s = true; maybe(); }, onErr);
   store.watch('days', m => { state.days = m; loaded.d = true; maybe(); }, onErr);
   store.watch('checks', m => { state.checks = m; maybe(); }, onErr);
   $('msg-area').hidden = false;

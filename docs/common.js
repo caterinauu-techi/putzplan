@@ -1,10 +1,59 @@
 // Gemeinsame Helfer: Personen, Datum, Kalender, Texte.
 
-export const PEOPLE = {
-  olena: { de: 'Olena', uk: 'Олена', color: '#1F6470', bg: '#D3ECF0' },
-  ilona: { de: 'Ilona', uk: 'Ілона', color: '#8A3A26', bg: '#FFDDD2' },
-  open:  { de: 'Putzfrau', uk: 'Прибиральниця', color: '#5A5566', bg: '#ECE8F0' }
-};
+// Farben für Personen (werden der Reihe nach vergeben)
+export const PALETTE = [
+  { color: '#1F6470', bg: '#D3ECF0' },
+  { color: '#8A3A26', bg: '#FFDDD2' },
+  { color: '#2A6B46', bg: '#D6EEDF' },
+  { color: '#7D3890', bg: '#EBDDF5' },
+  { color: '#7A5B12', bg: '#FDEBC8' },
+  { color: '#34528F', bg: '#DCE4F7' }
+];
+
+export const DEFAULT_PEOPLE = [
+  { id: 'olena', de: 'Olena', uk: 'Олена', color: PALETTE[0].color, bg: PALETTE[0].bg, active: true },
+  { id: 'ilona', de: 'Ilona', uk: 'Ілона', color: PALETTE[1].color, bg: PALETTE[1].bg, active: true }
+];
+const OPEN = { de: 'Putzfrau', uk: 'Прибиральниця', color: '#5A5566', bg: '#ECE8F0' };
+
+// Personen-Verzeichnis: wird aus settings/people befüllt (setPeople). Enthält auch entfernte Personen,
+// damit alte Häkchen und Nachrichten weiter einen Namen zeigen.
+export const PEOPLE = { open: OPEN };
+let ACTIVE = DEFAULT_PEOPLE.map(p => p.id);
+
+export function peopleList(settings) {
+  const l = settings && settings.people && Array.isArray(settings.people.list) ? settings.people.list : null;
+  return l && l.length ? l : DEFAULT_PEOPLE;
+}
+export function setPeople(settings) {
+  const list = peopleList(settings);
+  for (const k of Object.keys(PEOPLE)) if (k !== 'open') delete PEOPLE[k];
+  list.forEach(p => { PEOPLE[p.id] = { de: p.de, uk: p.uk || p.de, color: p.color, bg: p.bg }; });
+  ACTIVE = list.filter(p => p.active !== false).map(p => p.id);
+}
+export function activePeople() { return ACTIVE.slice(); }
+
+// Lateinische Schreibweise → ukrainische (Näherung, in der Verwaltung korrigierbar)
+export function toUkrainian(name) {
+  const rules = [['tsch', 'ч'], ['sch', 'ш'], ['ch', 'х'], ['sh', 'ш'], ['zh', 'ж'], ['ts', 'ц'], ['tz', 'ц'], ['ck', 'к'],
+    ['ja', 'я'], ['ju', 'ю'], ['je', 'є'], ['ji', 'ї'], ['ya', 'я'], ['yu', 'ю'], ['ei', 'ай'], ['ie', 'і'], ['ph', 'ф'], ['th', 'т'],
+    ['ä', 'е'], ['ö', 'е'], ['ü', 'ю'], ['ß', 'сс'], ['a', 'а'], ['b', 'б'], ['c', 'к'], ['d', 'д'], ['e', 'е'], ['f', 'ф'], ['g', 'г'],
+    ['h', 'г'], ['i', 'і'], ['j', 'й'], ['k', 'к'], ['l', 'л'], ['m', 'м'], ['n', 'н'], ['o', 'о'], ['p', 'п'], ['q', 'к'], ['r', 'р'],
+    ['s', 'с'], ['t', 'т'], ['u', 'у'], ['v', 'в'], ['w', 'в'], ['x', 'кс'], ['y', 'і'], ['z', 'ц']];
+  let out = '';
+  let i = 0;
+  const s = String(name || '');
+  while (i < s.length) {
+    const rest = s.slice(i).toLowerCase();
+    const r = rules.find(([lat]) => rest.startsWith(lat));
+    if (r) {
+      const upper = s[i] !== s[i].toLowerCase();
+      out += upper ? r[1].charAt(0).toUpperCase() + r[1].slice(1) : r[1];
+      i += r[0].length;
+    } else { out += s[i]; i++; }
+  }
+  return out;
+}
 
 // Standard-Wochenplan, solange in der Verwaltung nichts eingestellt ist (0 = Sonntag … 6 = Samstag)
 export const DEFAULT_WEEKLY = { 1: 'open', 3: 'open', 5: 'open' };
@@ -68,9 +117,11 @@ export function weekly(settings) {
 // Wer kommt an diesem Tag? 'olena' | 'ilona' | 'open' | null
 export function whoFor(key, settings, days) {
   const d = days && days[key];
-  if (d && d.who && d.who !== 'default') return d.who === 'none' ? null : d.who;
-  const w = weekly(settings)[dateOf(key).getDay()];
-  return w && w !== 'none' ? w : null;
+  let w;
+  if (d && d.who && d.who !== 'default') w = d.who;
+  else w = weekly(settings)[dateOf(key).getDay()];
+  if (!w || w === 'none') return null;
+  return PEOPLE[w] ? w : 'open';
 }
 
 // Monatsraster, Montag zuerst; null = leere Zelle
@@ -116,3 +167,6 @@ export function el(tag, attrs, ...children) {
 export function newId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
 
 export const ICON_CHECK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+// Startwerte, bis die Einstellungen geladen sind
+setPeople(null);
