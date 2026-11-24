@@ -21,9 +21,9 @@ export const firebaseConfig = {
 export const ADMIN_EMAILS = ['caterina.uu@gmail.com'];
 
 // Automatische Übersetzung (Firebase AI Logic / Gemini, kostenlose Stufe).
-// recaptchaSiteKey: Websiteschlüssel aus App Check (reCAPTCHA v3), siehe ANLEITUNG.md.
+// recaptchaSiteKey: reCAPTCHA-Enterprise-Websiteschlüssel (Google Cloud Fraud Defense), in App Check registriert.
 // Ohne Schlüssel funktioniert alles – nur ohne automatische Übersetzung.
 export const AI = {
-  recaptchaSiteKey: null,
-  model: 'gemini-4-hydrogen'
+  recaptchaSiteKey: '6Lf1kjAuAAAAAPllHfsBD2BXw0ZtjPsaq6-ZB9eN',
+  models: ['gemini-4-hydrogen', 'gemini-2.5-flash']
 };

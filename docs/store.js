@@ -36,9 +36,9 @@ async function firebaseStore() {
     if (!modelPromise) {
       modelPromise = Promise.all([import(SDK + 'firebase-app-check.js'), import(SDK + 'firebase-ai.js')])
         .then(([ac, ai]) => {
-          ac.initializeAppCheck(app, { provider: new ac.ReCaptchaV3Provider(AI.recaptchaSiteKey), isTokenAutoRefreshEnabled: true });
+          ac.initializeAppCheck(app, { provider: new ac.ReCaptchaEnterpriseProvider(AI.recaptchaSiteKey), isTokenAutoRefreshEnabled: true });
           const inst = ai.getAI(app, { backend: new ai.GoogleAIBackend() });
-          return ai.getGenerativeModel(inst, { model: AI.model });
+          return (AI.models || []).map(m => ai.getGenerativeModel(inst, { model: m }));
         })
         .catch(e => { console.warn('KI nicht verfügbar', e); return null; });
     }
@@ -49,16 +49,18 @@ async function firebaseStore() {
     demo: false,
     async translate(text, target) {
       if (!text || !text.trim()) return '';
-      const model = await getModel();
-      if (!model) return null;
-      try {
-        const r = await model.generateContent(translatePrompt(text, target));
-        const out = (r.response.text() || '').trim();
-        return out || null;
-      } catch (e) {
-        console.warn('Übersetzung fehlgeschlagen', e);
-        return null;
+      const models = await getModel();
+      if (!models || !models.length) return null;
+      for (const model of models) {
+        try {
+          const r = await model.generateContent(translatePrompt(text, target));
+          const out = (r.response.text() || '').trim();
+          if (out) return out;
+        } catch (e) {
+          console.warn('Übersetzung fehlgeschlagen', e);
+        }
       }
+      return null;
     },
     add: (col, data) => fs.addDoc(fs.collection(db, col), data),
     remove: (col, id) => fs.deleteDoc(fs.doc(db, col, id)),

@@ -1,75 +1,40 @@
 # Putzplan – Web-App für Olena & Ilona
 
-Zwei Seiten, eine gemeinsame Datenbank:
+**Live:**
+- Putzfrau (Ukrainisch/Deutsch): https://caterinauu-techi.github.io/putzplan/
+- Verwaltung (nur mit Google-Konto caterina.uu@gmail.com): https://caterinauu-techi.github.io/putzplan/admin.html
 
-- **index.html – für die Putzfrau** (Ukrainisch, umschaltbar auf Deutsch)
-  Kalender mit „wer kommt wann“, Sonderaufgaben des Tages, alle täglichen Aufgaben zum Abhaken,
-  Hinweis zu den matten Oberflächen, „Wo kommt was hin?“. Keine Anmeldung nötig.
-- **admin.html – für dich**
-  Wochenplan (z. B. Mo Olena, Mi Ilona, Fr Olena), pro Tag abweichend „wer kommt“ oder „kommt nicht“,
-  Notiz für den Tag (DE + optional UA), Sonderaufgaben (frei oder aus Vorlagen wie Ferienzeit-Aufgaben,
-  Keller, Garage, Schwimmtasche …), Übersicht was erledigt ist – mit Name und Uhrzeit.
-  Nur mit deinem Google-Konto (caterina.uu@gmail.com).
+## Was die Seiten können
 
-## Ausprobieren (Demo-Modus)
+**Putzfrau-Seite:** Kalender (wer kommt wann), Tagesnotiz und Sonderaufgaben, alle Routine-Aufgaben zum Abhaken,
+Hinweis zu matten Oberflächen, „Wo kommt was hin?“, Nachrichten an Caterina (mit Schnell-Knöpfen wie „Putzmittel fast leer“).
+Sprache UA/DE umschaltbar, jedes Handy merkt sich seine Sprache. Keine Anmeldung nötig.
 
-Solange in `docs/firebase-config.js` `firebaseConfig = null` steht, speichert die App nur lokal im Browser.
-Zum Testen den Ordner `public` mit einem einfachen Webserver öffnen (z. B. in VS Code „Live Server“) –
-direkt per Doppelklick auf die HTML-Datei funktioniert es nicht (Browser blockiert Module von der Festplatte).
+**Verwaltung:** Wochenplan (Mo–So: Olena / Ilona / niemand), pro Tag abweichend, Notiz und Sonderaufgaben (frei oder aus Vorlagen),
+Übersicht was erledigt ist (mit Name und Uhrzeit), Nachrichten lesen und beantworten.
 
-## Einrichten mit Firebase (einmalig, ca. 15 Minuten)
-
-1. **Projekt anlegen:** https://console.firebase.google.com → „Projekt hinzufügen“ → Name z. B. `putzplan`
-   (Google Analytics kann aus bleiben).
-2. **Web-App registrieren:** Projektübersicht → Symbol `</>` → Name „Putzplan“ → die angezeigte
-   `firebaseConfig` kopieren und in `docs/firebase-config.js` statt `null` einfügen.
-3. **Anmeldung aktivieren:** Build → Authentication → „Jetzt starten“ → Anmeldeanbieter:
-   - **Anonym** aktivieren (für die Putzfrau-Seite)
-   - **Google** aktivieren (für dich)
-4. **Datenbank anlegen:** Build → Firestore Database → „Datenbank erstellen“ → Standort `europe-west3 (Frankfurt)`
-   → „Im Produktionsmodus starten“.
-5. **Veröffentlichen** (am PC, Node.js muss installiert sein):
-   ```
-   npm install -g firebase-tools
-   firebase login
-   cd putzplan
-   firebase use --add        (dein Projekt auswählen)
-   firebase deploy
-   ```
-   Damit werden die Seiten **und** die Sicherheitsregeln (`firestore.rules`) hochgeladen.
-   Danach ist die App erreichbar unter `https://<projekt-id>.web.app`:
-   - Putzfrau: `https://<projekt-id>.web.app/` → diesen Link an Olena und Ilona schicken
-     (am besten auf dem Handy „Zum Startbildschirm hinzufügen“)
-   - Du: `https://<projekt-id>.web.app/admin.html`
-6. In der Verwaltung zuerst den **Wochenplan** einstellen (wer kommt Mo/Mi/Fr).
+**Automatische Übersetzung:** Notizen, Sonderaufgaben und Nachrichten werden beim Speichern über Gemini (Firebase AI Logic,
+kostenlose Stufe) übersetzt: Deutsch → Ukrainisch und Ukrainisch → Deutsch. Klappt die Übersetzung einmal nicht, wird der
+Originaltext angezeigt.
 
 ## Auf den Startbildschirm legen
 
-Die Seiten haben ein eigenes Symbol (grünes Klemmbrett) und öffnen sich vom Startbildschirm ohne Browserleiste wie eine App.
+- **iPhone (Safari):** Link öffnen → Teilen-Symbol → „Zum Home-Bildschirm“.
+- **Android (Chrome):** Link öffnen → Menü ⋮ → „Zum Startbildschirm hinzufügen“.
 
-- **iPhone (Safari):** Link öffnen → Teilen-Symbol (Quadrat mit Pfeil) → „Zum Home-Bildschirm“.
-- **Android (Chrome):** Link öffnen → Menü ⋮ → „Zum Startbildschirm hinzufügen“ bzw. „App installieren“.
+Nachricht zum Weiterschicken:
 
-Nachricht zum Weiterschicken an Olena und Ilona:
-
-> Привіт! Ось наш план прибирання: <LINK>
+> Привіт! Ось наш план прибирання: https://caterinauu-techi.github.io/putzplan/
 > Будь ласка, відкрийте посилання й додайте його на головний екран
 > (iPhone: «Поділитися» → «На початковий екран»; Android: меню ⋮ → «Додати на головний екран»).
-> Угорі натисніть «Я Олена» або «Я Ілона» і позначайте виконані завдання. Дякую!
+> Угорі натисніть «Я Олена» або «Я Ілона» і позначайте виконані завдання. Там же можна написати мені повідомлення. Дякую!
 
-Deine Verwaltung (`/admin.html`) kannst du genauso auf deinen Startbildschirm legen. Falls die Google-Anmeldung
-aus dem Startbildschirm-Symbol heraus nicht klappt (kommt auf manchen iPhones vor), einmal im normalen Browser anmelden.
+## Technik
 
-## Sicherheit
-
-- Die Putzfrau-Seite meldet sich unsichtbar anonym an. Damit kann man lesen und abhaken,
-  aber nichts am Plan, an Notizen oder Sonderaufgaben ändern.
-- Nur `caterina.uu@gmail.com` darf den Plan ändern (in `firestore.rules` und `docs/firebase-config.js`
-  eingetragen – bei einer weiteren Person beide Stellen ergänzen, z. B. für Alex).
-- Wer den Link kennt, kann die Aufgaben und den Kalender sehen. Es stehen keine Adressen oder Telefonnummern drin.
-
-## Anpassen
-
-- Aufgaben, Übersetzungen, Vorlagen: `docs/tasks.js`
-- Farben/Schrift: `docs/styles.css`
-- Nach Änderungen erneut `firebase deploy`.
+- Firebase-Projekt `putzplan-77d29` (Spark-Tarif, kostenlos): Authentication (anonym + Google), Firestore (Frankfurt),
+  App Check (reCAPTCHA Enterprise / Fraud Defense), AI Logic (Gemini Developer API).
+- Seiten: GitHub Pages aus dem Ordner `docs/` dieses Repos. Änderungen an `docs/` sind nach ca. 1 Minute live.
+- Sicherheitsregeln: `firestore.rules` (in der Firebase-Konsole unter Firestore → Regeln eingespielt).
+  Putzfrau kann lesen, abhaken und Nachrichten schreiben; nur die Verwaltung ändert Plan, Notizen und Sonderaufgaben.
+- Aufgaben und Übersetzungen: `docs/tasks.js`, Schnell-Nachrichten: `docs/messages.js`.
+- Der Code ist öffentlich (enthält Aufgabenliste und Vornamen). Die Daten (Häkchen, Nachrichten) liegen geschützt in Firebase.
